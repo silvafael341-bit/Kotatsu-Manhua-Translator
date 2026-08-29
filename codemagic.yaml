@@ -1,0 +1,17 @@
+workflows:
+  android-debug:
+    name: Kotatsu Manhua Translator - Debug
+    instance_type: linux_x2
+    max_build_duration: 60
+
+    environment:
+      java: 21
+
+    scripts:
+      - name: Build debug APK
+        script: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug
+
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
