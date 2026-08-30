@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import androidx.viewpager2.widget.ViewPager2.PageTransformer
 import com.google.android.material.snackbar.Snackbar
@@ -31,6 +32,7 @@ import org.koitharu.kotatsu.reader.ui.ReaderState
 import org.koitharu.kotatsu.reader.ui.pager.standard.NoAnimPageTransformer
 import org.koitharu.kotatsu.reader.ui.pager.standard.PageAnimTransformer
 import org.koitharu.kotatsu.reader.ui.pager.standard.PageHolder
+import org.koitharu.kotatsu.translation.domain.ManhuarmTranslator
 import org.koitharu.kotatsu.reader.ui.pager.standard.PagerEventSupplier
 import org.koitharu.kotatsu.reader.ui.pager.standard.PagesAdapter
 import javax.inject.Inject

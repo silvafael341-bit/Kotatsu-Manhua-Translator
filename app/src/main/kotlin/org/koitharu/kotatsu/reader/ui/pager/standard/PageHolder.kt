@@ -28,6 +28,9 @@ import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.ui.config.ReaderSettings
 import org.koitharu.kotatsu.reader.ui.pager.BasePageHolder
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
+import org.koitharu.kotatsu.translation.domain.ManhuarmTranslator
+import org.koitharu.kotatsu.translation.domain.TranslationRegion
+import org.koitharu.kotatsu.translation.ui.TranslationOverlayView
 
 open class PageHolder(
 	owner: LifecycleOwner,

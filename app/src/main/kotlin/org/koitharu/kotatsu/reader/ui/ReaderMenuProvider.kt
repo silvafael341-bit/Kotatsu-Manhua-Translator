@@ -7,21 +7,22 @@ import androidx.core.view.MenuProvider
 import org.koitharu.kotatsu.R
 
 class ReaderMenuProvider(
-	private val viewModel: ReaderViewModel,
+    private val viewModel: ReaderViewModel,
+    private val onTranslate: () -> Unit,
 ) : MenuProvider {
 
-	override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-		menuInflater.inflate(R.menu.opt_reader, menu)
-	}
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+        menuInflater.inflate(R.menu.opt_reader, menu)
+    }
 
-	override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-		return when (menuItem.itemId) {
-			R.id.action_info -> {
-				// TODO
-				true
-			}
-
-			else -> false
-		}
-	}
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+        return when (menuItem.itemId) {
+            R.id.action_translate -> {
+                onTranslate()
+                true
+            }
+            R.id.action_info -> true
+            else -> false
+        }
+    }
 }

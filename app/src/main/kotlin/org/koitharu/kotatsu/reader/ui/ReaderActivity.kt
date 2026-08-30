@@ -67,6 +67,8 @@ import org.koitharu.kotatsu.reader.data.TapGridSettings
 import org.koitharu.kotatsu.reader.domain.TapGridArea
 import org.koitharu.kotatsu.reader.ui.config.ReaderConfigSheet
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
+import org.koitharu.kotatsu.reader.ui.pager.BasePagerReaderFragment
+import org.koitharu.kotatsu.translation.domain.ManhuarmTranslator
 import org.koitharu.kotatsu.reader.ui.pager.ReaderUiState
 import org.koitharu.kotatsu.reader.ui.tapgrid.TapGridDispatcher
 import java.util.concurrent.TimeUnit
@@ -114,6 +116,8 @@ class ReaderActivity :
     private var gestureInsets: Insets = Insets.NONE
     private lateinit var readerManager: ReaderManager
     private val hideUiRunnable = Runnable { setUiIsVisible(false) }
+
+    private val manhuarmTranslator = ManhuarmTranslator()
 
     // Tracks whether the foldable device is in an unfolded state (half-opened or flat)
     private var isFoldUnfolded: Boolean = false
@@ -194,7 +198,12 @@ class ReaderActivity :
         viewModel.isZoomControlsEnabled.observe(this) {
             viewBinding.zoomControl.isVisible = it
         }
-        addMenuProvider(ReaderMenuProvider(viewModel))
+        addMenuProvider(
+            ReaderMenuProvider(viewModel) {
+                (readerManager.currentReader as? BasePagerReaderFragment)
+                    ?.translateCurrentPage(manhuarmTranslator)
+            },
+        )
 
         observeWindowLayout()
 
