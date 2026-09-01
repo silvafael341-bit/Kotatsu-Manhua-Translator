@@ -1,0 +1,33 @@
+name: Build Kotatsu Translator APK
+
+on:
+  push:
+    branches:
+      - kotatsu-translator-integrated
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Java and Gradle environment
+        run: |
+          java -version
+          ./gradlew --version
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kotatsu-Manhua-Translator-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
