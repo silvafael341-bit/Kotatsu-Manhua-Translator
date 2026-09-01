@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="translate_page">Traduzir</string>
+    <string name="translation_failed">Falha ao traduzir a página</string>
+</resources>

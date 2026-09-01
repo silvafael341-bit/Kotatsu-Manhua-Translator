@@ -8,8 +8,6 @@ plugins {
 	id 'dagger.hilt.android.plugin'
 	id 'androidx.room'
 	id 'org.jetbrains.kotlin.plugin.serialization'
-	// enable if needed
-	// id 'dev.reformator.stacktracedecoroutinator'
 }
 
 android {
@@ -28,43 +26,23 @@ android {
 		ksp {
 			arg('room.generateKotlin', 'true')
 		}
-		androidResources {
-			// https://issuetracker.google.com/issues/408030127
-			generateLocaleConfig false
-		}
+		androidResources { generateLocaleConfig false }
 		def localProperties = new Properties()
 		def localPropertiesFile = rootProject.file('local.properties')
-		if (localPropertiesFile.exists()) {
-			localProperties.load(new FileInputStream(localPropertiesFile))
-		}
+		if (localPropertiesFile.exists()) localProperties.load(new FileInputStream(localPropertiesFile))
 		resValue 'string', 'tg_backup_bot_token', localProperties.getProperty('tg_backup_bot_token', '')
 	}
 	buildTypes {
-		debug {
-			applicationIdSuffix = '.debug'
-		}
+		debug { applicationIdSuffix = '.debug' }
 		release {
 			minifyEnabled true
 			shrinkResources true
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 		}
-		nightly {
-			initWith release
-			applicationIdSuffix = '.nightly'
-		}
+		nightly { initWith release; applicationIdSuffix = '.nightly' }
 	}
-	buildFeatures {
-		viewBinding true
-		buildConfig true
-	}
-	packagingOptions {
-		resources {
-			excludes += [
-				'META-INF/README.md',
-				'META-INF/NOTICE.md'
-			]
-		}
-	}
+	buildFeatures { viewBinding true; buildConfig true }
+	packagingOptions { resources { excludes += ['META-INF/README.md', 'META-INF/NOTICE.md'] } }
 	sourceSets {
 		androidTest.assets.srcDirs += files("$projectDir/schemas".toString())
 		main.java.srcDirs += 'src/main/kotlin/'
@@ -91,9 +69,7 @@ android {
 			'-Xtype-enhancement-improvements-strict-mode'
 		]
 	}
-	room {
-		schemaDirectory "$projectDir/schemas"
-	}
+	room { schemaDirectory "$projectDir/schemas" }
 	lint {
 		abortOnError true
 		disable 'MissingTranslation', 'PrivateResource', 'SetJavaScriptEnabled', 'SimpleDateFormat'
@@ -101,9 +77,7 @@ android {
 	testOptions {
 		unitTests.includeAndroidResources true
 		unitTests.returnDefaultValues false
-		kotlinOptions {
-			freeCompilerArgs += ['-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi']
-		}
+		kotlinOptions { freeCompilerArgs += ['-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi'] }
 	}
 	applicationVariants.configureEach { variant ->
 		if (variant.name == 'nightly') {
@@ -115,23 +89,16 @@ android {
 		}
 	}
 }
+
 dependencies {
 	def parsersVersion = libs.versions.parsers.get()
-	if (System.properties.containsKey('parsersVersionOverride')) {
-		// usage:
-		// -DparsersVersionOverride=$(curl -s https://api.github.com/repos/kotatsuapp/kotatsu-parsers/commits/master -H "Accept: application/vnd.github.sha" | cut -c -10)
-		parsersVersion = System.getProperty('parsersVersionOverride')
-	}
-	//noinspection UseTomlInstead
-	implementation("com.github.KotatsuApp:kotatsu-parsers:$parsersVersion") {
-		exclude group: 'org.json', module: 'json'
-	}
+	if (System.properties.containsKey('parsersVersionOverride')) parsersVersion = System.getProperty('parsersVersionOverride')
+	implementation("com.github.KotatsuApp:kotatsu-parsers:$parsersVersion") { exclude group: 'org.json', module: 'json' }
 
 	coreLibraryDesugaring libs.desugar.jdk.libs
 	implementation libs.kotlin.stdlib
 	implementation libs.kotlinx.coroutines.android
 	implementation libs.kotlinx.coroutines.guava
-
 	implementation libs.androidx.appcompat
 	implementation libs.androidx.core
 	implementation libs.androidx.activity
@@ -151,31 +118,23 @@ dependencies {
 	implementation libs.material
 	implementation libs.androidx.lifecycle.common.java8
 	implementation libs.androidx.webkit
-
 	implementation libs.androidx.work.runtime
 	implementation libs.guava
-
-    // Foldable/Window layout
-    implementation libs.androidx.window
-
+	implementation libs.androidx.window
 	implementation libs.androidx.room.runtime
 	implementation libs.androidx.room.ktx
 	ksp libs.androidx.room.compiler
-
 	implementation libs.okhttp
 	implementation libs.okhttp.tls
 	implementation libs.okhttp.dnsoverhttps
 	implementation libs.okio
 	implementation libs.kotlinx.serialization.json
-
 	implementation libs.adapterdelegates
 	implementation libs.adapterdelegates.viewbinding
-
 	implementation libs.hilt.android
 	ksp libs.hilt.compiler
 	implementation libs.androidx.hilt.work
 	ksp libs.androidx.hilt.compiler
-
 	implementation libs.coil.core
 	implementation libs.coil.network
 	implementation libs.coil.gif
@@ -185,30 +144,29 @@ dependencies {
 	implementation libs.disk.lru.cache
 	implementation libs.markwon
 	implementation libs.kizzyrpc
-
 	implementation libs.acra.http
 	implementation libs.acra.dialog
-
 	implementation libs.conscrypt.android
+
+	// Manhua translator: CJK + Latin OCR.
+	implementation 'com.google.mlkit:text-recognition:16.0.1'
+	implementation 'com.google.mlkit:text-recognition-chinese:16.0.1'
+	implementation 'com.google.mlkit:text-recognition-japanese:16.0.1'
+	implementation 'com.google.mlkit:text-recognition-korean:16.0.1'
 
 	debugImplementation libs.leakcanary.android
 	nightlyImplementation libs.leakcanary.android
 	debugImplementation libs.workinspector
-
 	testImplementation libs.junit
 	testImplementation libs.json
 	testImplementation libs.kotlinx.coroutines.test
-
 	androidTestImplementation libs.androidx.runner
 	androidTestImplementation libs.androidx.rules
 	androidTestImplementation libs.androidx.test.core
 	androidTestImplementation libs.androidx.junit
-
 	androidTestImplementation libs.kotlinx.coroutines.test
-
 	androidTestImplementation libs.androidx.room.testing
 	androidTestImplementation libs.moshi.kotlin
-
 	androidTestImplementation libs.hilt.android.testing
 	kspAndroidTest libs.hilt.android.compiler
 }
