@@ -1,0 +1,30 @@
+workflows:
+  kotatsu-android-debug:
+    name: Kotatsu 9.4.1 + Manhua Translator (Debug)
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      java: 17
+      vars:
+        PACKAGE_NAME: "org.koitharu.kotatsu.debug"
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8"
+    scripts:
+      - name: Configure Android SDK
+        script: |
+          set -e
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Verify Gradle project
+        script: |
+          set -e
+          test -f "$CM_BUILD_DIR/settings.gradle"
+          test -f "$CM_BUILD_DIR/gradlew"
+          test -f "$CM_BUILD_DIR/app/build.gradle"
+          chmod +x "$CM_BUILD_DIR/gradlew"
+      - name: Build debug APK
+        script: |
+          set -e
+          ./gradlew --no-daemon --stacktrace assembleDebug
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/outputs/apk/**/*.apk
+      - app/build/outputs/**/mapping.txt
