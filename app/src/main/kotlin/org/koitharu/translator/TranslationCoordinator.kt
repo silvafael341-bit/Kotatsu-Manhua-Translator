@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.core.net.toFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.reader.domain.PageLoader
@@ -39,18 +40,28 @@ class TranslationCoordinator(
         }
 
     private fun decodeBitmap(uri: Uri): Bitmap {
-        val resolver = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            ?: throw IllegalStateException("Não foi possível abrir a imagem.")
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw IllegalStateException("Imagem inválida.")
+        openInput(uri).use { input ->
+            BitmapFactory.decodeStream(input, null, bounds)
+        }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            throw IllegalStateException("Imagem inválida: ${uri.scheme ?: "sem esquema"}")
+        }
         val sample = calculateSampleSize(bounds.outWidth, bounds.outHeight, 3000, 6000)
         val options = BitmapFactory.Options().apply {
             inSampleSize = sample
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
-        return resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
-            ?: throw IllegalStateException("Falha ao decodificar a imagem.")
+        return openInput(uri).use { input ->
+            BitmapFactory.decodeStream(input, null, options)
+                ?: throw IllegalStateException("Falha ao decodificar a imagem.")
+        }
+    }
+
+    private fun openInput(uri: Uri) = when (uri.scheme?.lowercase()) {
+        "file" -> uri.toFile().inputStream()
+        else -> context.contentResolver.openInputStream(uri)
+            ?: throw IllegalStateException("Não foi possível abrir a imagem.")
     }
 
     private fun calculateSampleSize(width: Int, height: Int, maxWidth: Int, maxHeight: Int): Int {
