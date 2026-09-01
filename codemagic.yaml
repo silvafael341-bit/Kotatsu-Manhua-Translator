@@ -23,7 +23,17 @@ workflows:
       - name: Build debug APK
         script: |
           set -e
-          ./gradlew --no-daemon --stacktrace assembleDebug
+          for attempt in 1 2 3; do
+            echo "Gradle build attempt $attempt/3"
+            if ./gradlew --no-daemon --stacktrace assembleDebug; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Build failed; retrying after transient dependency/network failure..."
+              sleep 20
+            fi
+          done
+          exit 1
     artifacts:
       - app/build/outputs/apk/debug/*.apk
       - app/build/outputs/apk/**/*.apk
