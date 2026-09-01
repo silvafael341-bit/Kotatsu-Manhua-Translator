@@ -1,7 +1,6 @@
 package org.koitharu.kotatsu.translation.data
 
 import com.google.mlkit.common.model.DownloadConditions
-import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translator
@@ -17,22 +16,20 @@ private suspend fun <T> com.google.android.gms.tasks.Task<T>.awaitTask(): T =
         addOnCanceledListener { continuation.cancel() }
     }
 
-/**
- * Offline-capable translation client used by the Kotatsu reader.
- * Models are downloaded once when first needed and then reused per language pair.
- */
+/** Offline-capable translation client. Source language is selected without the optional ML Kit language-id module. */
 class MlKitTranslateClient(
     private val targetLanguage: String = TranslateLanguage.PORTUGUESE,
 ) : AutoCloseable {
 
-    private val languageIdentifier by lazy { LanguageIdentification.getClient() }
     private val translators = mutableMapOf<String, Translator>()
 
     suspend fun translate(text: String, sourceLanguage: String = "auto"): String {
         val clean = text.trim()
         if (clean.isBlank()) return ""
 
-        val source = resolveSourceLanguage(clean, sourceLanguage)
+        val source = if (sourceLanguage == "auto") heuristicLanguage(clean)
+        else TranslateLanguage.fromLanguageTag(sourceLanguage) ?: heuristicLanguage(clean)
+
         if (source == targetLanguage) return clean
 
         val key = "$source->$targetLanguage"
@@ -45,25 +42,8 @@ class MlKitTranslateClient(
             )
         }
 
-        translator.downloadModelIfNeeded(
-            DownloadConditions.Builder()
-                .build(),
-        ).awaitTask()
-
+        translator.downloadModelIfNeeded(DownloadConditions.Builder().build()).awaitTask()
         return translator.translate(clean).awaitTask().trim()
-    }
-
-    private suspend fun resolveSourceLanguage(text: String, requested: String): String {
-        if (requested != "auto") {
-            return TranslateLanguage.fromLanguageTag(requested) ?: heuristicLanguage(text)
-        }
-
-        val detected = runCatching { languageIdentifier.identifyLanguage(text).awaitTask() }
-            .getOrNull()
-            ?.takeIf { it != "und" }
-
-        return TranslateLanguage.fromLanguageTag(detected ?: heuristicLanguage(text))
-            ?: heuristicLanguage(text)
     }
 
     private fun heuristicLanguage(text: String): String = when {
@@ -76,6 +56,5 @@ class MlKitTranslateClient(
     override fun close() {
         translators.values.forEach { runCatching { it.close() } }
         translators.clear()
-        runCatching { languageIdentifier.close() }
     }
 }
