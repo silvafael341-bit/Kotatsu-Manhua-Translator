@@ -22,6 +22,7 @@ import kotlin.math.min
 
 class OcrEngine : AutoCloseable {
     private data class Candidate(val block: TextBlock, val score: Float)
+    private data class PreparedBitmap(val bitmap: Bitmap, val scale: Float)
 
     private val recognizers: List<Pair<String, TextRecognizer>> = listOf(
         "zh" to TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build()),
@@ -33,35 +34,34 @@ class OcrEngine : AutoCloseable {
     suspend fun scan(bitmap: Bitmap): List<TextBlock> {
         if (bitmap.width < 2 || bitmap.height < 2) return emptyList()
 
-        // First pass: original pixels, all supported scripts and rotations.
-        val candidates = scanBitmap(bitmap, scale = 1f, onlyLatin = false)
-        val first = deduplicate(candidates, bitmap.width, bitmap.height)
+        // Pass 1: original image, all scripts, including vertical text.
+        val first = deduplicate(
+            scanBitmap(bitmap, scale = 1f),
+            bitmap.width,
+            bitmap.height,
+        )
         if (first.isNotEmpty()) return first
 
-        // Manga/manhua pages often contain outlined or low-contrast lettering.
-        // A contrast-enhanced pass gives ML Kit a much cleaner edge without
-        // changing the coordinate system used by the renderer.
-        val enhanced = createEnhanced(bitmap)
+        // Pass 2: stronger contrast and, for smaller reader images, 1.5x
+        // upscaling. This specifically targets outlined/small manga lettering.
+        val prepared = createEnhanced(bitmap)
         return try {
-            val fallback = scanBitmap(enhanced, scale = 1f, onlyLatin = false)
-            deduplicate(fallback, bitmap.width, bitmap.height)
+            deduplicate(
+                scanBitmap(prepared.bitmap, prepared.scale),
+                bitmap.width,
+                bitmap.height,
+            )
         } finally {
-            if (enhanced !== bitmap) enhanced.recycle()
+            if (prepared.bitmap !== bitmap) prepared.bitmap.recycle()
         }
     }
 
-    private suspend fun scanBitmap(
-        bitmap: Bitmap,
-        scale: Float,
-        onlyLatin: Boolean,
-    ): MutableList<Candidate> {
+    private suspend fun scanBitmap(bitmap: Bitmap, scale: Float): MutableList<Candidate> {
         val candidates = mutableListOf<Candidate>()
-        val selected = if (onlyLatin) recognizers.filter { it.first == "en" } else recognizers
-
         for (rotation in intArrayOf(0, 90, 270)) {
             val rotated = if (rotation == 0) bitmap else rotate(bitmap, rotation)
             try {
-                for ((language, recognizer) in selected) {
+                for ((language, recognizer) in recognizers) {
                     runCatching {
                         recognizer.process(InputImage.fromBitmap(rotated, 0)).await()
                     }.onSuccess { result ->
@@ -108,17 +108,22 @@ class OcrEngine : AutoCloseable {
             }
         }
         return result
-            .filter { it.boundingBox.left < width && it.boundingBox.top < height }
+            .filter {
+                it.boundingBox.left < width && it.boundingBox.top < height &&
+                    it.boundingBox.right > 0 && it.boundingBox.bottom > 0
+            }
             .sortedWith(compareBy<TextBlock> { it.boundingBox.top }.thenBy { it.boundingBox.left })
             .take(250)
     }
 
-    private fun createEnhanced(source: Bitmap): Bitmap {
-        val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+    private fun createEnhanced(source: Bitmap): PreparedBitmap {
+        val maxDimension = max(source.width, source.height)
+        val scale = if (maxDimension < 3000) 1.5f else 1f
+        val width = (source.width * scale).toInt().coerceAtLeast(2)
+        val height = (source.height * scale).toInt().coerceAtLeast(2)
+        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         val matrix = ColorMatrix().apply {
-            // Slight desaturation + stronger contrast preserves black text on
-            // white/colored speech balloons while suppressing artwork noise.
             setSaturation(0.15f)
             val contrast = 1.55f
             val translate = (-0.5f * contrast + 0.5f) * 255f
@@ -133,8 +138,9 @@ class OcrEngine : AutoCloseable {
             colorFilter = ColorMatrixColorFilter(matrix)
             isFilterBitmap = true
         }
-        canvas.drawBitmap(source, 0f, 0f, paint)
-        return output
+        val destination = android.graphics.Rect(0, 0, width, height)
+        canvas.drawBitmap(source, null, destination, paint)
+        return PreparedBitmap(output, scale)
     }
 
     private fun scriptBonus(text: String, language: String): Float {
@@ -173,12 +179,12 @@ class OcrEngine : AutoCloseable {
             270 -> Rect(w - rect.bottom, rect.left, w - rect.top, rect.right)
             else -> Rect(rect)
         }
-        mapped.left = (mapped.left / scale).toInt().coerceIn(0, w)
-        mapped.right = (mapped.right / scale).toInt().coerceIn(0, w)
-        mapped.top = (mapped.top / scale).toInt().coerceIn(0, h)
-        mapped.bottom = (mapped.bottom / scale).toInt().coerceIn(0, h)
-        if (mapped.right <= mapped.left) mapped.right = min(w, mapped.left + 1)
-        if (mapped.bottom <= mapped.top) mapped.bottom = min(h, mapped.top + 1)
+        mapped.left = (mapped.left / scale).toInt().coerceIn(0, (w / scale).toInt())
+        mapped.right = (mapped.right / scale).toInt().coerceIn(0, (w / scale).toInt())
+        mapped.top = (mapped.top / scale).toInt().coerceIn(0, (h / scale).toInt())
+        mapped.bottom = (mapped.bottom / scale).toInt().coerceIn(0, (h / scale).toInt())
+        if (mapped.right <= mapped.left) mapped.right = min((w / scale).toInt(), mapped.left + 1)
+        if (mapped.bottom <= mapped.top) mapped.bottom = min((h / scale).toInt(), mapped.top + 1)
         return mapped
     }
 
